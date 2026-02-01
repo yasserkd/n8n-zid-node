@@ -1,0 +1,153 @@
+{
+  "name": "Zid New Order Notification",
+  "nodes": [
+    {
+      "parameters": {
+        "triggerOn": "newOrder",
+        "pollInterval": 5,
+        "statusFilter": "",
+        "limit": 10
+      },
+      "name": "Zid Order Trigger",
+      "type": "n8n-nodes-zid.zidOrderTrigger",
+      "typeVersion": 1,
+      "position": [
+        240,
+        300
+      ],
+      "credentials": {
+        "zidOAuth2Api": {
+          "id": "1",
+          "name": "Zid OAuth2 API account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "functionCode": "// Extract order information\nconst order = $input.first().json;\n\nreturn {\n  json: {\n    orderId: order.id,\n    customerName: order.customer?.name || 'Unknown',\n    customerEmail: order.customer?.email || '',\n    orderTotal: order.total || 0,\n    orderStatus: order.status || 'pending',\n    orderDate: order.created_at || new Date().toISOString(),\n    itemCount: order.items?.length || 0,\n    orderUrl: `https://admin.zid.sa/orders/${order.id}`\n  }\n};"
+      },
+      "name": "Process Order Data",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        460,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json.customerEmail}}",
+              "operation": "isNotEmpty"
+            }
+          ]
+        }
+      },
+      "name": "Check Email Exists",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        680,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "fromEmail": "orders@yourstore.com",
+        "toEmail": "={{$json.customerEmail}}",
+        "subject": "Order Confirmation - #{{$json.orderId}}",
+        "text": "Dear {{$json.customerName}},\n\nThank you for your order!\n\nOrder Details:\n- Order ID: {{$json.orderId}}\n- Total: {{$json.orderTotal}}\n- Status: {{$json.orderStatus}}\n- Items: {{$json.itemCount}}\n- Date: {{$json.orderDate}}\n\nYou can track your order at: {{$json.orderUrl}}\n\nBest regards,\nYour Store Team",
+        "html": "<h2>Order Confirmation - #{{$json.orderId}}</h2>\n<p>Dear {{$json.customerName}},</p>\n<p>Thank you for your order!</p>\n<h3>Order Details:</h3>\n<ul>\n<li><strong>Order ID:</strong> {{$json.orderId}}</li>\n<li><strong>Total:</strong> {{$json.orderTotal}}</li>\n<li><strong>Status:</strong> {{$json.orderStatus}}</li>\n<li><strong>Items:</strong> {{$json.itemCount}}</li>\n<li><strong>Date:</strong> {{$json.orderDate}}</li>\n</ul>\n<p><a href=\"{{$json.orderUrl}}\">Track your order</a></p>\n<p>Best regards,<br>Your Store Team</p>"
+      },
+      "name": "Send Customer Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [
+        900,
+        200
+      ],
+      "credentials": {
+        "smtp": {
+          "id": "2",
+          "name": "SMTP account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fromEmail": "orders@yourstore.com",
+        "toEmail": "admin@yourstore.com",
+        "subject": "New Order Alert - #{{$json.orderId}}",
+        "text": "New order received!\n\nOrder Details:\n- Order ID: {{$json.orderId}}\n- Customer: {{$json.customerName}} ({{$json.customerEmail}})\n- Total: {{$json.orderTotal}}\n- Status: {{$json.orderStatus}}\n- Items: {{$json.itemCount}}\n- Date: {{$json.orderDate}}\n\nView order: {{$json.orderUrl}}",
+        "html": "<h2>New Order Alert - #{{$json.orderId}}</h2>\n<p>New order received!</p>\n<h3>Order Details:</h3>\n<ul>\n<li><strong>Order ID:</strong> {{$json.orderId}}</li>\n<li><strong>Customer:</strong> {{$json.customerName}} ({{$json.customerEmail}})</li>\n<li><strong>Total:</strong> {{$json.orderTotal}}</li>\n<li><strong>Status:</strong> {{$json.orderStatus}}</li>\n<li><strong>Items:</strong> {{$json.itemCount}}</li>\n<li><strong>Date:</strong> {{$json.orderDate}}</li>\n</ul>\n<p><a href=\"{{$json.orderUrl}}\">View order</a></p>"
+      },
+      "name": "Send Admin Notification",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [
+        900,
+        400
+      ],
+      "credentials": {
+        "smtp": {
+          "id": "2",
+          "name": "SMTP account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Zid Order Trigger": {
+      "main": [
+        [
+          {
+            "node": "Process Order Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Order Data": {
+      "main": [
+        [
+          {
+            "node": "Check Email Exists",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Email Exists": {
+      "main": [
+        [
+          {
+            "node": "Send Customer Email",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Send Admin Notification",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Admin Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {},
+  "createdAt": "2024-06-09T12:00:00.000Z",
+  "updatedAt": "2024-06-09T12:00:00.000Z",
+  "id": "1"
+} 
